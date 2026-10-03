@@ -1,0 +1,123 @@
+// Prisma schema for the AI Career Platform.
+// Defaults to SQLite for zero-config local/dev deploys.
+// For production, point DATABASE_URL at Postgres and change provider to "postgresql".
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  targetRole   String?
+  targetCompany String?
+  createdAt    DateTime @default(now())
+
+  resumes           Resume[]
+  roadmaps          Roadmap[]
+  chatSessions      ChatSession[]
+  lessons           Lesson[]
+  interviews        MockInterview[]
+  bookings          Booking[]
+  quizAttempts      QuizAttempt[]
+}
+
+model Resume {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  fileName      String
+  rawText       String
+  analysisJson  String   // structured AI analysis: skills, gaps, projects, knowledge map
+  resumeScore   Int      @default(0)
+  createdAt     DateTime @default(now())
+}
+
+model Roadmap {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+  targetCompany String
+  targetRole    String
+  weeksJson     String  // array of { week, title, topics[], status }
+  currentWeek   Int     @default(1)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model ChatSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  mode      String   // "tutor"
+  topic     String?
+  messagesJson String @default("[]") // [{role, content, ts}]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Lesson {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  topic     String
+  contentJson String // { notes, mcqs, codingQuestions, interviewQuestions }
+  createdAt DateTime @default(now())
+}
+
+model QuizAttempt {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  lessonId  String?
+  topic     String
+  score     Int
+  total     Int
+  createdAt DateTime @default(now())
+}
+
+model MockInterview {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  mode          String   // technical | hr | behavioral | resume | coding | company
+  targetCompany String?
+  status        String   @default("in_progress") // in_progress | completed
+  transcriptJson String  @default("[]")
+  reportJson     String? // final scored report once completed
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Teacher {
+  id           String   @id @default(cuid())
+  name         String
+  headline     String
+  subjects     String   // comma separated
+  bio          String
+  rating       Float    @default(4.8)
+  reviewCount  Int      @default(0)
+  hourlyRate   Int      // in smallest currency unit's display form, e.g. 999 = $9.99 or ₹999
+  currency     String   @default("USD")
+  avatarSeed   String   @default("teacher")
+  bookings     Booking[]
+}
+
+model Booking {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  teacherId   String
+  teacher     Teacher  @relation(fields: [teacherId], references: [id])
+  subject     String
+  slot        String   // ISO datetime string chosen by the user
+  status      String   @default("pending_payment") // pending_payment | confirmed | completed | cancelled
+  createdAt   DateTime @default(now())
+}
